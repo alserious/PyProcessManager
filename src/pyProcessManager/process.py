@@ -1,22 +1,41 @@
 import os
 import sys
 from subprocess import run, STDOUT, PIPE
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Union
 
-import psutil
+from psutil import Process, Popen
+
+from .transport import Local, OverSSH
 
 
-class PyProcess(psutil.Process):
-    """Python process class allows to create processes from separate python modules,
-    and monitoring their statistics and logs.
-    There is also a functionality of the library psutil.
+class PyProcess(Process):
+    """Python process class allows to create processes
+    from separate python modules, and monitoring their
+    statistics and logs. There is also a functionality
+    of the library psutil.
+
+    Args:
+        Process (_type_): _description_
     """
 
-    def __init__(self, pid: Optional[int] = None) -> None:
+    def __init__(
+        self, pid: Optional[int] = None, transport: Union["Local", "OverSSH"] = "Local"
+    ):
+        """_summary_
+
+        Args:
+            pid (Optional[int], optional): _description_. Defaults to None.
+            transport (Union[Local, OverSSH, optional): _description_. Defaults to Local.
+        """
+
         self.py_pid: Optional[int] = None
         self.py_name: Optional[str] = None
         self.py_log_file: Optional[str] = None
-        self.py_process: Optional[psutil.Process] = None
+        self.py_process: Optional[Process] = None
+        if transport == "OverSSH":
+            pass
+
+        self.transport: Union[Local, OverSSH()] = transport
 
         if pid is None:
             super().__init__()
@@ -28,6 +47,10 @@ class PyProcess(psutil.Process):
 
     def _get_py_module_path(self, py_module: Callable) -> str:
         """Getting the absolute path to a python module.
+
+        Args:
+            py_module (Callable): _description_
+
         Returns:
             str: Absolute path to the file.
         """
@@ -35,6 +58,10 @@ class PyProcess(psutil.Process):
 
     def _get_py_module_dir(self, py_module: Callable) -> str:
         """Getting the absolute path to a python directory.
+
+        Args:
+            py_module (Callable): _description_
+
         Returns:
             str: Absolute path to the directory.
         """
@@ -43,8 +70,12 @@ class PyProcess(psutil.Process):
 
     def _get_cmd_for_start_process(self, path_to_module: str) -> List[str]:
         """Generating a command to start a python process.
+
+        Args:
+            path_to_module (str): _description_
+
         Returns:
-            str: Сommand to start python process.
+            List[str]: Bash commands to start python process.
         """
         return [str(sys.executable), "-u", str(path_to_module)]
 
@@ -52,6 +83,11 @@ class PyProcess(psutil.Process):
         self, py_module: Callable, log_file: Optional[str] = None
     ) -> str:
         """Creating and running a process from a python module.
+
+        Args:
+            py_module (Callable): _description_
+            log_file (Optional[str], optional): _description_. Defaults to None.
+
         Returns:
             str: Process ID.
         """
@@ -66,7 +102,7 @@ class PyProcess(psutil.Process):
         else:
             self.py_log_file = module_path.replace(".py", ".log")
 
-        self.py_process = psutil.Popen(
+        self.py_process = Popen(
             cmd,
             stdout=os.open(
                 path=self.py_log_file, flags=os.O_CREAT | os.O_WRONLY | os.O_APPEND
@@ -85,9 +121,13 @@ class PyProcess(psutil.Process):
 
     def get_process_log(self, lines: int = 10) -> str:
         """Getting the last number lines of log entries N of process.
+        Args:
+            lines (int, optional): _description_. Defaults to 10.
+
         Returns:
-            str: STDOUT of process python.
+            str: STDOUT of python process.
         """
+
         p = run(
             args=["tail", "-n", str(lines), self.py_log_file],
             stdout=PIPE,

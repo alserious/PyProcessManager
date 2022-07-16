@@ -1,3 +1,3 @@
-from .py_process import PyProcess
+from .process import PyProcess
 
 __all__ = ["PyProcess"]
